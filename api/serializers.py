@@ -95,6 +95,25 @@ class GrupoCursoSerializer(serializers.ModelSerializer):
 
 # Serializador para matricula
 class MatriculaSerializer(serializers.ModelSerializer):
+    estudiante = EstudianteSerializer(read_only=True)
+    estudiante_id = serializers.PrimaryKeyRelatedField(
+        write_only=True,
+        source='estudiante',
+        queryset=Estudiante.objects.all(),
+    )
+    grupo = GrupoCursoSerializer(read_only=True)
+    grupo_id = serializers.PrimaryKeyRelatedField(
+        write_only=True,
+        source='grupo',
+        queryset=GrupoCurso.objects.all(),
+    )
+    periodo = PeriodoAcademicoSerializer(read_only=True)
+    periodo_id = serializers.PrimaryKeyRelatedField(
+        write_only=True,
+        source='periodo',
+        queryset=PeriodoAcademico.objects.all(),
+    )
+
     class Meta:
         model = Matricula
         fields = '__all__'

@@ -1,4 +1,9 @@
+import csv
+
+from django.http import HttpResponse
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, viewsets
+from rest_framework.decorators import action
 
 from .models import (
     PeriodoAcademico,
@@ -32,7 +37,7 @@ from .models import (
     Usuario,
     Auditoria,
 )
-
+from .permissions import EsAdministrador
 from .serializers import (
     PeriodoAcademicoSerializer,
     DepartamentoSerializer,
@@ -65,9 +70,72 @@ from .serializers import (
     UsuarioSerializer,
     AuditoriaSerializer,
 )
+from .utils import success_response
+
+
+class BaseModelViewSet(viewsets.ModelViewSet):
+    permission_classes = [EsAdministrador]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = []
+    ordering_fields = []
+    ordering = []
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(queryset, many=True)
+        return success_response(serializer.data)
+
+    def retrieve(self, request, *args, **kwargs):
+        response = super().retrieve(request, *args, **kwargs)
+        return success_response(response.data)
+
+    def create(self, request, *args, **kwargs):
+        response = super().create(request, *args, **kwargs)
+        return success_response(response.data, "Creado", status_code=response.status_code)
+
+    def update(self, request, *args, **kwargs):
+        response = super().update(request, *args, **kwargs)
+        return success_response(response.data, "Actualizado", status_code=response.status_code)
+
+    def partial_update(self, request, *args, **kwargs):
+        response = super().partial_update(request, *args, **kwargs)
+        return success_response(response.data, "Actualizado", status_code=response.status_code)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return success_response({}, "Eliminado")
+
+    def perform_create(self, serializer):
+        instance = serializer.save()
+        self.log_operation("crear", instance)
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        self.log_operation("modificar", instance)
+
+    def perform_destroy(self, instance):
+        self.log_operation("eliminar", instance)
+        super().perform_destroy(instance)
+
+    def log_operation(self, action, instance):
+        try:
+            Auditoria.objects.create(
+                usuario=self.request.user if self.request.user.is_authenticated else None,
+                operacion=action[:1].upper() if action else '',
+                tabla=instance._meta.db_table,
+                registro_id=getattr(instance, instance._meta.pk.name, None) or 0,
+            )
+        except Exception:
+            pass
+
 
 # crud para periodo academico (GET, POST, PUT, DELETE)
-class PeriodoAcademicoViewSet(viewsets.ModelViewSet):
+class PeriodoAcademicoViewSet(BaseModelViewSet):
     queryset = PeriodoAcademico.objects.all()
     serializer_class = PeriodoAcademicoSerializer
     filter_backends = [filters.OrderingFilter]
