@@ -1,7 +1,30 @@
 from datetime import date
 
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
+
+
+class AuditModel(models.Model):
+    usuario_creacion = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        editable=False,
+        related_name="%(class)s_creados",
+    )
+    usuario_modificacion = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        editable=False,
+        related_name="%(class)s_modificados",
+    )
+
+    class Meta:
+        abstract = True
 
 
 # ============================================================
@@ -9,7 +32,7 @@ from django.utils import timezone
 # ============================================================
 
 # modelo tabla periodo academico (necesario: define el contexto de matriculas y grupos)
-class PeriodoAcademico(models.Model):
+class PeriodoAcademico(AuditModel):
     periodo_id = models.AutoField(primary_key=True)
     nombre = models.CharField(max_length=60, unique=True)
     fecha_inicio = models.DateField()
@@ -25,7 +48,7 @@ class PeriodoAcademico(models.Model):
 
 
 # modelo tabla departamento (necesario: lo usan Docente, Programa y Curso)
-class Departamento(models.Model):
+class Departamento(AuditModel):
     departamento_id = models.AutoField(primary_key=True)
     nombre = models.CharField(max_length=120, unique=True)
     codigo = models.CharField(max_length=20, unique=True)
@@ -39,7 +62,7 @@ class Departamento(models.Model):
 
 
 # modelo tabla edificio (necesario: lo usa Aula)
-class Edificio(models.Model):
+class Edificio(AuditModel):
     edificio_id = models.AutoField(primary_key=True)
     nombre = models.CharField(max_length=100, unique=True)
     direccion = models.TextField(blank=True, null=True)
@@ -53,7 +76,7 @@ class Edificio(models.Model):
 
 
 # modelo tabla persona (necesario: base de Estudiante y Docente)
-class Persona(models.Model):
+class Persona(AuditModel):
     GENEROS = (
         ("M", "Masculino"),
         ("F", "Femenino"),
@@ -87,7 +110,7 @@ class Persona(models.Model):
 # ============================================================
 # ENTIDAD 1: ESTUDIANTES
 # ============================================================
-class Estudiante(models.Model):
+class Estudiante(AuditModel):
     estudiante_id = models.AutoField(primary_key=True)
     persona = models.OneToOneField(
         Persona,
@@ -110,7 +133,7 @@ class Estudiante(models.Model):
 # ============================================================
 # ENTIDAD 2: DOCENTES
 # ============================================================
-class Docente(models.Model):
+class Docente(AuditModel):
     docente_id = models.AutoField(primary_key=True)
     persona = models.OneToOneField(
         Persona,
@@ -142,7 +165,7 @@ class Docente(models.Model):
 # ============================================================
 # ENTIDAD 3: PROGRAMAS
 # ============================================================
-class Programa(models.Model):
+class Programa(AuditModel):
     programa_id = models.AutoField(primary_key=True)
     nombre = models.CharField(max_length=150)
     codigo = models.CharField(max_length=20, unique=True)
@@ -171,7 +194,7 @@ class Programa(models.Model):
 # ============================================================
 # ENTIDAD 4: CURSOS  (Relacion: Curso → Programa)
 # ============================================================
-class Curso(models.Model):
+class Curso(AuditModel):
     curso_id = models.AutoField(primary_key=True)
     programa = models.ForeignKey(
         Programa,
@@ -204,7 +227,7 @@ class Curso(models.Model):
 
 
 # modelo tabla grupo curso (necesario: nexo entre Curso, Docente, Periodo y Matricula/Horario)
-class GrupoCurso(models.Model):
+class GrupoCurso(AuditModel):
     grupo_id = models.AutoField(primary_key=True)
     curso = models.ForeignKey(
         Curso,
@@ -240,7 +263,7 @@ class GrupoCurso(models.Model):
 # ============================================================
 # ENTIDAD 5: MATRÍCULAS  (Relaciones: Matricula → Estudiante, Matricula → Curso vía grupo)
 # ============================================================
-class Matricula(models.Model):
+class Matricula(AuditModel):
     ESTADOS = (
         ("Activa", "Activa"),
         ("Cancelada", "Cancelada"),
@@ -289,7 +312,7 @@ class Matricula(models.Model):
 # ============================================================
 # ENTIDAD 6: EVALUACIONES  (Relaciones: Evaluacion → Curso vía grupo, Evaluacion → Estudiante vía nota)
 # ============================================================
-class Evaluacion(models.Model):
+class Evaluacion(AuditModel):
     evaluacion_id = models.AutoField(primary_key=True)
     grupo = models.ForeignKey(
         GrupoCurso,
@@ -313,7 +336,7 @@ class Evaluacion(models.Model):
 
 
 # modelo tabla nota evaluacion (necesario: implementa la relacion Evaluacion → Estudiante)
-class NotaEvaluacion(models.Model):
+class NotaEvaluacion(AuditModel):
     nota_id = models.AutoField(primary_key=True)
     evaluacion = models.ForeignKey(
         Evaluacion,
@@ -344,7 +367,7 @@ class NotaEvaluacion(models.Model):
 # ============================================================
 # ENTIDAD 7: AULAS  (necesario para la relacion Horario → Aula)
 # ============================================================
-class Aula(models.Model):
+class Aula(AuditModel):
     aula_id = models.AutoField(primary_key=True)
     edificio = models.ForeignKey(
         Edificio,
@@ -371,7 +394,7 @@ class Aula(models.Model):
 # ============================================================
 # ENTIDAD 8: HORARIOS  (Relaciones: Horario → Curso vía grupo, Horario → Aula)
 # ============================================================
-class Horario(models.Model):
+class Horario(AuditModel):
     DIAS = (
         ("Lunes", "Lunes"),
         ("Martes", "Martes"),

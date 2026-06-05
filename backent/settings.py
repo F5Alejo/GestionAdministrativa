@@ -4,6 +4,8 @@ from decouple import Csv, RepositoryEnv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 ENV = RepositoryEnv(BASE_DIR / ".env").data
+LOG_DIR = BASE_DIR / "logs"
+LOG_DIR.mkdir(exist_ok=True)
 
 
 def config(key, default=None, cast=None):
@@ -117,4 +119,30 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
+}
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "audit_json": {
+            "format": "%(message)s",
+        },
+    },
+    "handlers": {
+        "audit_file": {
+            "level": "INFO",
+            "class": "logging.FileHandler",
+            "filename": LOG_DIR / "auditoria_registros.log",
+            "encoding": "utf-8",
+            "formatter": "audit_json",
+        },
+    },
+    "loggers": {
+        "api.audit": {
+            "handlers": ["audit_file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
 }
